@@ -26,7 +26,7 @@ def return_MS_factors(mass):
 def opal_sun(T, rho):
     # load opal table and prepare for interpolation
     opaldir_local = os.path.dirname(os.path.abspath(__file__))+'/'
-    opal = np.loadtxt(opaldir_local+'opal_sun.csv', delimiter=',')
+    opal = np.loadtxt(opaldir_local+'tables/opal_sun.csv', delimiter=',')
     x = opal.T[:, 0]
     y = opal[:, 0]
     x = np.delete(x, 0)
@@ -47,7 +47,7 @@ def opal_sun(T, rho):
 def opal_sun_points(Ts,rhos):
     # load opal table and prepare for interpolation
     opaldir_local = os.path.dirname(os.path.abspath(__file__))+'/'
-    opal = np.loadtxt(opaldir_local+'opal_sun.csv', delimiter=',')
+    opal = np.loadtxt(opaldir_local+'tables/opal_sun.csv', delimiter=',')
     x = opal.T[:, 0]
     y = opal[:, 0]
     x = np.delete(x, 0)

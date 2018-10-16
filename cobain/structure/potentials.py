@@ -2,8 +2,45 @@ import numpy as np
 from scipy.optimize import newton
 from scipy.special import legendre
 
+def critical_pots(q, sma=1., d=1., F=1.):
+    # L1
+    dxL = 1.0
+    L1 = 1e-3
+    while abs(dxL) > 1e-6:
+        dxL = - dBinaryRochedx([L1, 0.0, 0.0], 1., q, 1.) / d2BinaryRochedx2([L1, 0.0, 0.0], 1.,
+                                                                                                   q, 1.)
+        L1 = L1 + dxL
+    Phi_L1 = BinaryRoche(np.array([L1, 0.0, 0.0]), q, 1., 1.)
+
+    # L2
+    if (q > 1.0):
+        q2 = 1.0 / q
+    else:
+        q2 = q
+
+    dxL = 1.1e-6
+
+    D = d * sma
+    factor = (q2 / 3 / (q2 + 1)) ** 1. / 3.
+    xL = 1 + factor + 1. / 3. * factor ** 2 + 1. / 9. * factor ** 3
+    while (abs(dxL) > 1e-6):
+        xL = xL + dxL
+        Force = F * F * (q2 + 1) * xL - 1.0 / xL / xL - q2 * (xL - D) / abs((D - xL) ** 3) - q2 / D / D
+        dxLdF = 1.0 / (F * F * (q2 + 1) + 2.0 / xL / xL / xL + 2 * q2 / abs((D - xL) ** 3))
+        dxL = -Force * dxLdF
+
+    if (q > 1.0):
+        xL = D - xL
+    xL2 = xL
+    Phi_L2 = 1.0 / abs(xL2) + q * (1.0 / abs(xL2 - 1) - xL2) + 1. / 2. * (q + 1) * xL2 * xL2
+
+    return {'xL1': L1, 'xL2': xL2, 'pot_L1': Phi_L1, 'pot_L2': Phi_L2}
+
 def BinaryRoche_spherical(r, q, lam, nu):
     return 1. / r + q * ((1. - 2 * lam * r + r ** 2) ** (-0.5) - lam * r) + 0.5 * (q + 1.) * r ** 2 * (1 - nu ** 2)
+
+def BinaryRoche_cylindrical(r,q,x,theta):
+    return 1. / np.sqrt(x ** 2 + r ** 2) + q * (1. / np.sqrt((x - 1) ** 2 + r ** 2) - x) + 0.5 * (q + 1.) * (x ** 2 + r ** 2 * (np.sin(theta))**2)
 
 def BinaryRoche(r,q,D=1.,F=1.):
     return 1.0 / np.sqrt(r[0] * r[0] + r[1] * r[1] + r[2] * r[2]) + q * (
@@ -28,11 +65,40 @@ def radius_newton_tidal(rc, pot, q, xmin):
         r = newton(Roche, r_start, maxiter=100000, tol=1e-8)
         vc = r * np.array([lam, mu, nu])
 
+        if ((vc[0] < 0. and vc[0] > -1. and vc[1] >= 0. and vc[2] >= 0.) or (abs(vc[0]) <= xmin) and (vc[1] >= 0.) and (vc[2] >= 0.)):
+            # do this for separate components cause they may have different diverging strips
+            return r
+        else:
+            return np.nan
+    except:
+        return np.nan
+
+def radius_newton_spherical(r0, lam, mu, nu, pot, q, xmin):
+    r_start = r0
+
+    def Roche(r):
+        return pot - BinaryRoche(r*np.array([lam,mu,nu]), q)
+
+    try:
+        r = newton(Roche, r_start, maxiter=100000, tol=1e-8)
+        vc = r * np.array([lam, mu, nu])
+
         if ((vc[0] < 0. and vc[0] > -1. and vc[1] >= 0. and vc[2] >= 0.) or (abs(vc[0]) <= 1.2*xmin) and (vc[1] >= 0.) and (vc[2] >= 0.)):
             # do this for separate components cause they may have different diverging strips
             return r
         else:
             return np.nan
+    except:
+        return np.nan
+
+def radius_newton_cylindrical(r0, x, theta, pot, q):
+
+    def Roche(r,x=x, theta=theta, q=q):
+        return pot - BinaryRoche_cylindrical(r,x=x,theta=theta,q=q)
+
+    try:
+        return newton(Roche, r0, args=(x,theta,q), maxiter=100000, tol=1e-8)
+
     except:
         return np.nan
 
@@ -146,7 +212,7 @@ def dDiffRotRochedz(r, bs):
     return r[2] / (r[0] ** 2 + r[1] ** 2 + r[2] ** 2) ** 0.5
 
 
-def radius_pot_diffrot(pot, bs, R, theta):
+def radius_pot_diffrot(pot, bs, theta):
     r0 = 1. / pot
     x = 1. - (np.cos(theta)) ** 2
 
@@ -165,7 +231,7 @@ def radius_pot_diffrot(pot, bs, R, theta):
     def Roche(r):
         return pot - (1./r + 0.5 * r**2 * x * (bs[0] + 0.5*bs[1]*x*r**2 + 1./3. * bs[2] * x**2 * r**4))
 
-    r = newton(Roche, r_start, maxiter = 1000) * R
+    r = newton(Roche, r_start, maxiter = 1000)
 
     return r
 
